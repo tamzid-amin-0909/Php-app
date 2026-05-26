@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database JSON Auto Merger</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background:#f4f7fb; font-family:'Segoe UI',sans-serif; padding:40px 0; }
+        .card { border:none; border-radius:18px; box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+        .title { font-weight:700; color:#0d6efd; }
+        .upload-box { background:white; border-radius:14px; padding:20px; border:2px dashed #d0d7e2; }
+        .status-box { background:#fff; border-radius:14px; padding:15px; margin-top:20px; min-height:70px; max-height:320px; overflow-y:auto; }
+        .log-item { padding:8px 10px; border-bottom:1px solid #eee; font-size:13px; display:flex; align-items:center; gap:8px; }
+        .btn-custom { border-radius:999px; padding:10px 20px; font-weight:600; }
+        .success { color:#198754; } .error { color:#dc3545; } .warn { color:#fd7e14; } .info { color:#0d6efd; }
+        .badge-ok   { background:#d1e7dd; color:#198754; }
+        .badge-err  { background:#f8d7da; color:#dc3545; }
+        .badge-warn { background:#fff3cd; color:#856404; }
+        .badge-info { background:#cfe2ff; color:#084298; }
+        .spinner-border { width:1rem; height:1rem; border-width:2px; }
+        #progressBar { transition: width 0.3s ease; }
+        .divider { border-top:2px dashed #dee2e6; margin:24px 0; }
+        .btn-rm { background:linear-gradient(135deg,#6f42c1,#0d6efd); border:none; color:#fff; }
+        .btn-rm:hover { background:linear-gradient(135deg,#5a32a3,#0a58ca); color:#fff; }
+        .btn-rm:disabled { opacity:0.65; }
+    </style>
+</head>
+<body>
+<div class="container">
+<div class="row justify-content-center">
+<div class="col-lg-8">
+<div class="card p-4">
+
+    <h2 class="text-center title mb-1">Database JSON Auto Merger</h2>
+    <p class="text-center text-muted mb-4" style="font-size:13px;">
+        Server DB: <code>everythingfree.iceiy.com/app/database.json</code>
+    </p>
+
+    <!-- ═══ AUTO UPDATE SECTION ══════════════════════════════════════════════ -->
+    <div class="upload-box mb-4" style="border-color:#6f42c1; background:#f8f5ff;">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="fs-5">🚀</span>
+            <span class="fw-bold" style="color:#6f42c1;">Auto Update from Redwan's Method</span>
+        </div>
+        <p class="text-muted mb-3" style="font-size:13px;">
+            Fetches all 9 courses from RM API → merges into your server database.json → uploads → downloads a ZIP with old &amp; new files.
+        </p>
+
+        <div class="progress mb-3" style="height:8px; display:none;" id="progressWrap">
+            <div class="progress-bar progress-bar-striped progress-bar-animated btn-rm"
+                 id="progressBar" role="progressbar" style="width:0%"></div>
+        </div>
+
+        <div class="d-grid">
+            <button class="btn btn-rm btn-custom" id="updateRmBtn">
+                ⚡ Update RM
+            </button>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══ MANUAL MERGE SECTION ═════════════════════════════════════════════ -->
+    <div class="upload-box mb-4">
+        <label class="form-label fw-bold">1. Upload Main Database JSON</label>
+        <input type="file" id="mainJson" class="form-control" accept=".json">
+        <div class="form-text mt-2">Upload your main database.json file or it will be fetched from the server.</div>
+    </div>
+
+    <div class="upload-box mb-4">
+        <label class="form-label fw-bold">2. Upload Subject JSON Files</label>
+        <input type="file" id="subjectFiles" class="form-control" accept=".json" multiple>
+        <div class="form-text mt-2">
+            Example file names: physics001.json &nbsp;|&nbsp; chemistry_class.json &nbsp;|&nbsp; bgs09.json
+        </div>
+    </div>
+
+    <div class="d-grid">
+        <button class="btn btn-primary btn-custom" id="processBtn">Merge &amp; Download database.json</button>
+    </div>
+
+    <!-- ═══ LOG BOX ═══════════════════════════════════════════════════════════ -->
+    <div class="status-box mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold">Processing Log</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()" style="border-radius:999px;font-size:11px;">Clear</button>
+        </div>
+        <div id="logs"></div>
+    </div>
+
+</div>
+</div>
+</div>
+</div>
+
+<script>
+
+// ─── CONFIG ────────────────────────────────────────────────────────────────────
+
+const SERVER_DB_URL  = 'https://everythingfree.iceiy.com/app/database.json';
+const UPLOADER_URL   = 'https://everythingfree.iceiy.com/app/databaseuploader.php';
+
+const SUBJECT_KEYS = [
+    'physics','chemistry','biology','ict',
+    'general_math','higher_math','english','bgs','bangla'
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+
+let mainDatabase = null;
+
+const mainJsonInput   = document.getElementById('mainJson');
+const subjectFilesInput = document.getElementById('subjectFiles');
+const processBtn      = document.getElementById('processBtn');
+const updateRmBtn     = document.getElementById('updateRmBtn');
+const logsEl          = document.getElementById('logs');
+const progressWrap    = document.getElementById('progressWrap');
+const progressBar     = document.getElementById('progressBar');
+
+// ─── LOG HELPERS ──────────────────────────────────────────────────────────────
+
+function addLog(message, type = 'ok') {
+    const badges = { ok:'badge-ok', error:'badge-err', warn:'badge-warn', info:'badge-info' };
+    const icons  = { ok:'✓', error:'✗', warn:'⚠', info:'ℹ' };
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    div.innerHTML = `<span class="badge ${badges[type] || 'badge-info'}">${icons[type] || 'i'}</span> ${message}`;
+    logsEl.appendChild(div);
+    logsEl.parentElement.scrollTop = logsEl.parentElement.scrollHeight;
+}
+
+function clearLogs() { logsEl.innerHTML = ''; }
+
+function setProgress(pct) {
+    progressWrap.style.display = 'block';
+    progressBar.style.width = pct + '%';
+    if (pct >= 100) setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 1500);
+}
+
+// ─── UPDATE RM (AUTOMATED) ────────────────────────────────────────────────────
+
+updateRmBtn.addEventListener('click', async () => {
+
+    clearLogs();
+    updateRmBtn.disabled = true;
+    updateRmBtn.innerHTML = '<span class="spinner-border me-2"></span>Working…';
+    setProgress(10);
+
+    addLog('Sending update request to server…', 'info');
+
+    try {
+        const resp = await fetch(UPLOADER_URL + '?action=update_rm', { method: 'GET' });
+
+        setProgress(70);
+
+        if (!resp.ok) {
+            const errText = await resp.text();
+            try {
+                const errJson = JSON.parse(errText);
+                addLog('Server error: ' + (errJson.error || errText), 'error');
+            } catch {
+                addLog('Server error: ' + errText, 'error');
+            }
+            return;
+        }
+
+        // Check if server returned a zip
+        const contentType = resp.headers.get('content-type') || '';
+        if (contentType.includes('application/zip')) {
+            const blob = await resp.blob();
+            setProgress(90);
+            triggerDownload(blob, 'rm_database_update.zip');
+            addLog('Server merged & saved database.json ✓', 'ok');
+            addLog('ZIP downloaded: rm_database_update.zip (old + new database + log)', 'ok');
+            setProgress(100);
+        } else {
+            // Maybe server returned JSON log instead
+            const text = await resp.text();
+            try {
+                const data = JSON.parse(text);
+                if (data.error) { addLog('Error: ' + data.error, 'error'); return; }
+                addLog(JSON.stringify(data), 'info');
+            } catch {
+                addLog('Unexpected response: ' + text.substring(0, 200), 'warn');
+            }
+        }
+
+    } catch (err) {
+        addLog('Network error: ' + err.message, 'error');
+        addLog('Tip: Make sure databaseuploader.php is uploaded to /app/', 'warn');
+    } finally {
+        updateRmBtn.disabled = false;
+        updateRmBtn.innerHTML = '⚡ Update RM';
+    }
+});
+
+// ─── MANUAL MERGE ────────────────────────────────────────────────────────────
+
+processBtn.addEventListener('click', async () => {
+
+    clearLogs();
+
+    try {
+
+        // Load main DB — from file input or fetch from server
+        if (mainJsonInput.files.length > 0) {
+            const mainText = await mainJsonInput.files[0].text();
+            mainDatabase = JSON.parse(mainText);
+            addLog('Main database loaded from uploaded file.', 'ok');
+        } else {
+            addLog('No file selected — fetching database.json from server…', 'info');
+            const res = await fetch(SERVER_DB_URL);
+            if (!res.ok) throw new Error('Failed to fetch server database.json');
+            mainDatabase = await res.json();
+            addLog('Main database fetched from server.', 'ok');
+        }
+
+        const files = Array.from(subjectFilesInput.files);
+        if (files.length === 0) { addLog('No subject files uploaded.', 'error'); return; }
+
+        for (const file of files) {
+
+            try {
+                const detectedSubject = detectSubject(file.name);
+
+                if (!detectedSubject) {
+                    addLog(`Skipped ${file.name} → No matching subject key found.`, 'error');
+                    continue;
+                }
+
+                const json = JSON.parse(await file.text());
+                const formatted = formatData(json);
+
+                if (!mainDatabase.content) mainDatabase.content = {};
+
+                if (!mainDatabase.content[detectedSubject]) {
+                    addLog(`Subject key '${detectedSubject}' not found in content.`, 'error');
+                    continue;
+                }
+
+                if (!mainDatabase.content[detectedSubject].children)
+                    mainDatabase.content[detectedSubject].children = {};
+
+                Object.assign(mainDatabase.content[detectedSubject].children, formatted);
+
+                addLog(`Merged ${file.name} → content/${detectedSubject}/children`, 'ok');
+
+            } catch (err) {
+                addLog(`Error processing ${file.name}: ${err.message}`, 'error');
+            }
+        }
+
+        triggerDownload(
+            new Blob([JSON.stringify(mainDatabase)], { type: 'application/json' }),
+            'database.json'
+        );
+
+        addLog('database.json downloaded successfully.', 'ok');
+
+    } catch (err) {
+        addLog('Fatal error: ' + err.message, 'error');
+    }
+});
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+function detectSubject(fileName) {
+    const lower = fileName.toLowerCase();
+    return SUBJECT_KEYS.find(s => lower.includes(s));
+}
+
+function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function formatData(data) {
+    let root = {};
+    data.forEach(item => {
+        let subKey = item.subject.toLowerCase().replace(/\s+/g,'_').replace(/[()]/g,'');
+        root[subKey] = {
+            title:       item.subject,
+            thumbnail:   item.subjectThumbnail || item.thumbnail || '',
+            type:        'category',
+            description: item.subject || '',
+            children:    {}
+        };
+        if (item.chapters) {
+            item.chapters.forEach((chap, cIdx) => {
+                let chapKey = 'id_' + (cIdx + 1);
+                root[subKey].children[chapKey] = {
+                    title:     chap.chapterName,
+                    thumbnail: chap.chapterThumbnail || chap.thumbnail || '',
+                    type:      'category',
+                    children:  {}
+                };
+                if (chap.lectures) {
+                    chap.lectures.forEach(lec => {
+                        let lecKey  = 'lec_' + (lec.videoNumber || '0');
+                        let descArr = [];
+                        if (lec.videoLectureSheetURL) descArr.push('Lecture Sheet--> ' + lec.videoLectureSheetURL);
+                        if (lec.videoLectureNoteURL || lec.videoNoteURL)
+                            descArr.push('Note--> ' + (lec.videoLectureNoteURL || lec.videoNoteURL));
+                        if (lec.videoPracticeSheetURL) descArr.push('Practice Sheet--> ' + lec.videoPracticeSheetURL);
+                        if (lec.videoSolveSheetURL)    descArr.push('Solve Sheet--> ' + lec.videoSolveSheetURL);
+                        root[subKey].children[chapKey].children[lecKey] = {
+                            title:       lec.videoTitle,
+                            type:        'video',
+                            description: descArr.join('\n'),
+                            url:         lec.videoYoutubeURL || lec.videoURL || ''
+                        };
+                    });
+                }
+            });
+        }
+    });
+    return root;
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Player</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg:#080a0f;--surface:#0e1117;--border:#1c2030;--accent:#e8ff47;--accent2:#47d4ff;--text:#d8dce8;--muted:#4a5068; }
+    html, body { height:100%;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;overflow-x:hidden; }
+    body::before { content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");background-size:180px;pointer-events:none;z-index:0; }
+    .page { position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem;gap:2rem; }
+    header { text-align:center; }
+    header h1 { font-family:'Syne',sans-serif;font-size:clamp(1.6rem,5vw,3rem);font-weight:800;letter-spacing:-0.03em;background:linear-gradient(120deg,var(--accent) 0%,var(--accent2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+    header p { margin-top:.5rem;font-size:.72rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase; }
+    .player-wrap { width:100%;max-width:960px;border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px rgba(232,255,71,.06),0 24px 80px rgba(0,0,0,.7);background:var(--surface);position:relative; }
+    .player-wrap::before,.player-wrap::after { content:'';position:absolute;width:18px;height:18px;border-color:var(--accent);border-style:solid;z-index:10;pointer-events:none; }
+    .player-wrap::before { top:-1px;left:-1px;border-width:2px 0 0 2px;border-radius:12px 0 0 0; }
+    .player-wrap::after { bottom:-1px;right:-1px;border-width:0 2px 2px 0;border-radius:0 0 12px 0; }
+    .plyr { --plyr-color-main:var(--accent);--plyr-range-fill-background:var(--accent);--plyr-range-thumb-background:var(--accent);--plyr-font-family:'DM Mono',monospace;--plyr-font-size-base:13px; }
+    .meta-bar { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;padding:.8rem 1.2rem;border-top:1px solid var(--border);font-size:.68rem;color:var(--muted);letter-spacing:.06em; }
+    .meta-bar .tag { padding:.25rem .6rem;border-radius:4px;background:rgba(232,255,71,.07);color:var(--accent);font-size:.65rem;letter-spacing:.1em; }
+    .loading-badge { display:none;align-items:center;gap:.6rem;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);padding:.4rem .9rem;border:1px solid rgba(71,212,255,.25);border-radius:999px;background:rgba(71,212,255,.05); }
+    .loading-badge.visible { display:flex; }
+    .spinner { width:14px;height:14px;border:2px solid rgba(71,212,255,.2);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    #error-msg { display:none;color:#ff6b6b;font-size:.75rem;text-align:center;padding:.5rem 1rem;border:1px solid rgba(255,107,107,.25);border-radius:6px;background:rgba(255,107,107,.05);max-width:960px;width:100%; }
+    .page > * { opacity:0;transform:translateY(18px);animation:rise .55s cubic-bezier(.22,1,.36,1) forwards; }
+    .page > *:nth-child(1){animation-delay:.05s}.page > *:nth-child(2){animation-delay:.15s}.page > *:nth-child(3){animation-delay:.22s}.page > *:nth-child(4){animation-delay:.28s}
+    @keyframes rise { to { opacity:1;transform:none; } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header><h1>STREAM PLAYER</h1><p>HLS · Plyr · PHP Proxy</p></header>
+  <div id="loading-badge" class="loading-badge visible"><span class="spinner"></span><span>Loading stream…</span></div>
+  <div class="player-wrap">
+    <video id="player" playsinline controls></video>
+    <div class="meta-bar"><span>Proxied via proxy.php · BunnyCDN</span><span class="tag">HLS</span></div>
+  </div>
+  <div id="error-msg"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.js"></script>
+<script>
+  const HLS_SRC = 'proxy.php?url=' + encodeURIComponent('https://vz-a6f58c33-be8.b-cdn.net/17b6722d-f1af-4b79-96a6-37c437a24d50/playlist.m3u8');
+  const video        = document.getElementById('player');
+  const loadingBadge = document.getElementById('loading-badge');
+  const errorMsg     = document.getElementById('error-msg');
+
+  function showError(msg) {
+    loadingBadge.classList.remove('visible');
+    errorMsg.style.display = 'block';
+    errorMsg.textContent   = '⚠ ' + msg;
+  }
+
+  // Quality label helper: 0 = Auto
+  function qualityLabel(height) {
+    if (height === 0) return 'Auto';
+    if (height >= 2160) return '4K';
+    if (height >= 1440) return '1440p';
+    if (height >= 1080) return '1080p';
+    if (height >= 720)  return '720p';
+    if (height >= 480)  return '480p';
+    if (height >= 360)  return '360p';
+    return height + 'p';
+  }
+
+  if (Hls.isSupported()) {
+    const hls = new Hls({ debug: false });
+    hls.loadSource(HLS_SRC);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+      loadingBadge.classList.remove('visible');
+
+      // Deduplicated heights descending, with 0 = Auto prepended
+      const heights = [...new Set(data.levels.map(l => l.height))].sort((a, b) => b - a);
+      const options = [0, ...heights];
+
+      // i18n labels for Plyr
+      const i18n = { 0: 'Auto' };
+      heights.forEach(h => { i18n[h] = qualityLabel(h); });
+
+      // Init Plyr NOW with real quality options
+      const player = new Plyr(video, {
+        controls: ['play-large','play','progress','current-time','duration','mute','volume','captions','settings','pip','fullscreen'],
+        settings: ['quality', 'speed'],
+        speed:    { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+        quality: {
+          default: 0,
+          options: options,
+          forced:  true,
+          onChange(newQuality) {
+            if (newQuality === 0) {
+              hls.currentLevel = -1; // Auto
+            } else {
+              hls.levels.forEach((level, index) => {
+                if (level.height === newQuality) hls.currentLevel = index;
+              });
+            }
+          },
+        },
+        i18n: { qualityLabel: i18n },
+      });
+
+      player.play().catch(() => {});
+    });
+
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) showError('HLS error (' + data.type + '): ' + data.details);
+    });
+
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    // Safari — native HLS, no quality API available
+    const player = new Plyr(video, {
+      controls: ['play-large','play','progress','current-time','duration','mute','volume','captions','settings','pip','fullscreen'],
+      settings: ['speed'],
+      speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+    });
+    video.src = HLS_SRC;
+    video.addEventListener('loadedmetadata', () => loadingBadge.classList.remove('visible'));
+    video.addEventListener('error', () => showError('Failed to load stream.'));
+  } else {
+    showError('HLS is not supported in this browser.');
+  }
+</script>
+</body>
+</html>

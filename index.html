@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite LMS Portal</title>
+    
+    <!-- Fonts & Tailwind -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { primary: 'var(--theme-primary)', bgMain: 'var(--theme-bg)', panelMain: 'var(--theme-panel)' } } } }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+    
+    <!-- Plugins & Styles -->
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <link rel="stylesheet" href="styles.css" />
+    
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="antialiased min-h-screen flex flex-col relative overflow-x-hidden text-slate-100">
+
+    <!-- Dynamic Theme Injector -->
+    <style id="dynamic-theme"></style>
+
+    <!-- Top Notice Bar -->
+    <div id="notice-bar" class="bg-primary text-slate-900 font-bold text-sm py-1.5 marquee hidden z-50">
+        <span id="notice-text"></span>
+    </div>
+
+    <!-- Responsive Navbar -->
+    <header id="main-nav" class="glass-panel sticky top-0 z-40 border-b border-white/10 shadow-lg">
+        <div class="container mx-auto px-4 py-2 flex justify-between items-center gap-2">
+            <h1 class="text-xl font-bold tracking-tight cursor-pointer flex items-center gap-2 text-primary transition-colors" onclick="window.location.hash=''">
+                <svg class="w-6 h-6 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9z"/></svg>
+                <span class="hidden sm:inline">EduZod</span>
+            </h1>
+            <nav class="hidden md:block text-xs font-medium text-slate-400 flex-grow px-4 overflow-hidden whitespace-nowrap text-ellipsis" id="breadcrumb"></nav>
+            <div class="flex items-center gap-2 md:gap-3 shrink-0">
+                <div class="text-xs text-slate-300 hidden lg:block" id="user-greeting"></div>
+                <div id="auth-buttons" class="flex items-center gap-2"></div>
+            </div>
+        </div>
+        <div class="md:hidden container mx-auto px-4 pb-2"><nav class="text-[10px] font-medium text-slate-400 overflow-x-auto whitespace-nowrap pb-1" id="breadcrumb-mobile"></nav></div>
+    </header>
+
+    <!-- App Container -->
+    <main class="container mx-auto px-4 md:px-6 py-6 flex-grow" id="app-container"></main>
+
+    <!-- Modals Mount Point -->
+    <div id="modal-root"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+    <script src="backend-state.js"></script>
+    <script src="utilities.js"></script>
+    
+    
+    <script src="rememberme.js"></script>
+    <script src="securityguard.js"></script>
+    <script src="auth.js"></script>
+    <script src="forcelogout.js"></script>
+    
+    <script src="skeletonloader.js"></script>
+    <script src="header.js"></script>
+    <script src="bannerslider.js"></script>
+    <script src="contentviews.js"></script>
+    <script src="hardenedplayer.js"></script>
+    
+    <script src="adminactions.js"></script>
+    <script src="adminpanel.js"></script>
+    
+    <script src="initapp.js"></script>
+    <script src="app.js"></script>
+
+</body>
+</html>

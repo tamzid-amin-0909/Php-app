@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Architect Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css" />
+    
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+</head>
+<body class="p-2 md:p-6">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-center mb-4 px-1">
+            <h1 class="text-lg font-extrabold text-white">Course <span class="text-emerald-500">Architect</span></h1>
+            <button onclick="fetchData()" class="bg-white/5 p-1.5 rounded-lg border border-white/10 text-emerald-400 hover:bg-white/10 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </button>
+        </header>
+
+        <div id="treeContainer" class="glass-panel rounded-2xl p-2 md:p-4 min-h-[400px]">
+            <p class="text-center text-slate-600 py-20 text-xs">Loading database...</p>
+        </div>
+    </div>
+
+    <!-- Minimal Editor Modal -->
+    <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center hidden p-2">
+        <div class="fixed inset-0 bg-black/90 backdrop-blur-sm" onclick="closeModal()"></div>
+        <div class="glass-panel w-full max-w-3xl rounded-2xl p-4 z-10 relative">
+            <div class="flex justify-between items-center mb-3">
+                <h2 id="modalTitle" class="text-sm font-bold text-white">Editor</h2>
+                <button onclick="closeModal()" class="text-slate-400 text-2xl">&times;</button>
+            </div>
+            <textarea id="editor" class="w-full h-[70vh] code-editor p-3 text-xs text-emerald-50 outline-none rounded-lg border border-white/10 focus:border-emerald-500/50" spellcheck="false"></textarea>
+            <div class="flex justify-end gap-2 mt-4">
+                <button onclick="closeModal()" class="px-4 py-1.5 text-slate-400 text-xs font-bold">Cancel</button>
+                <button id="saveBtn" class="bg-emerald-600 px-6 py-1.5 rounded-lg text-xs font-bold text-white">Save Minified</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-bold shadow-2xl hidden z-50 uppercase tracking-widest"></div>
+
+    <script>
+        let db = {};
+        const API = 'api.php';
+
+        function rawFormat(obj) {
+            let json = JSON.stringify(obj);
+            let out = ""; let inStr = false;
+            for (let i = 0; i < json.length; i++) {
+                let c = json[i];
+                if (c === '"' && (i === 0 || json[i-1] !== '\\')) inStr = !inStr;
+                if (!inStr) {
+                    if (c === '{' || c === '[') out += c + "\n   ";
+                    else if (c === '}' || c === ']') out += "\n" + c;
+                    else if (c === ',') out += ",\n   ";
+                    else if (c === ':') out += " : ";
+                    else out += c;
+                } else out += c;
+            }
+            return out.replace(/\n\s*\n/g, '\n');
+        }
+
+        async function fetchData() {
+            try {
+                const res = await fetch(`${API}?action=read`);
+                db = await res.json();
+                render();
+            } catch (err) {
+                document.getElementById('treeContainer').innerHTML = `<p class="text-rose-400 text-center p-4 text-xs font-bold">API Error</p>`;
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '';
+            Object.entries(db).forEach(([k, v]) => container.appendChild(buildNode(k, v, [k])));
+        }
+
+        function buildNode(key, val, path) {
+            const isObj = val !== null && typeof val === 'object';
+            const node = document.createElement('div');
+            node.className = "mb-0.5";
+
+            const item = document.createElement('div');
+            item.className = 'node-item flex items-center p-1 rounded-lg hover:bg-white/5 cursor-pointer group';
+
+            const icon = document.createElement('div');
+            icon.className = `w-5 h-5 flex items-center justify-center rounded-md mr-2 transition-all ${isObj ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`;
+            icon.innerHTML = isObj ? `<svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5 transition-transform" id="icon-${path.join('-')}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>` : '•';
+
+            const label = document.createElement('div');
+            label.className = 'text-[11px] flex-1 truncate mr-2';
+            const valueDisplay = !isObj ? `<span class="text-emerald-400 ml-1 opacity-80">"${val}"</span>` : `<span class="text-slate-600 text-[8px] ml-1 font-bold">(${Object.keys(val).length})</span>`;
+            label.innerHTML = `<span class="font-semibold text-slate-300">${key}</span>${valueDisplay}`;
+
+            if (isObj) {
+                item.onclick = (e) => {
+                    const children = node.querySelector('.children-block');
+                    const isHidden = children.classList.toggle('hidden');
+                    document.getElementById(`icon-${path.join('-')}`).style.transform = isHidden ? 'rotate(-90deg)' : 'rotate(0deg)';
+                };
+            }
+
+            const actions = document.createElement('div');
+            actions.className = 'flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity';
+
+            const addBtn = (svg, clr, fn) => {
+                const b = document.createElement('button');
+                b.className = `action-btn ${clr} border border-transparent hover:border-current`;
+                b.innerHTML = svg;
+                b.onclick = (e) => { e.stopPropagation(); fn(); };
+                actions.appendChild(b);
+            };
+
+            // Copy Icon
+            addBtn('<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>', 
+                'bg-blue-500/10 text-blue-400', () => {
+                const text = rawFormat(val);
+                const el = document.createElement('textarea');
+                el.value = text; document.body.appendChild(el); el.select();
+                document.execCommand('copy'); document.body.removeChild(el);
+                showToast('Copied');
+            });
+
+            // Edit Icon
+            addBtn('<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 012.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>', 
+                'bg-amber-500/10 text-amber-400', () => openEditor(`Edit ${key}`, val, path));
+
+            // Paste Icon
+            addBtn('<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>', 
+                'bg-purple-500/10 text-purple-400', () => openEditor(`Paste ${key}`, {}, path, true));
+
+            item.append(icon, label, actions);
+            node.appendChild(item);
+
+            if (isObj) {
+                const children = document.createElement('div');
+                children.className = 'children-block hidden ml-4 tree-line';
+                Object.entries(val).forEach(([ck, cv]) => {
+                    children.appendChild(buildNode(ck, cv, [...path, ck]));
+                });
+                node.appendChild(children);
+            }
+            return node;
+        }
+
+        function openEditor(title, data, path, isPaste = false) {
+            const modal = document.getElementById('modal');
+            const editor = document.getElementById('editor');
+            document.getElementById('modalTitle').innerText = title;
+            editor.value = isPaste ? "" : JSON.stringify(data, null, 2);
+            modal.classList.remove('hidden');
+            editor.focus();
+
+            document.getElementById('saveBtn').onclick = async () => {
+                try {
+                    const newContent = JSON.parse(editor.value);
+                    updatePath(path, newContent);
+                    const response = await fetch(`${API}?action=write`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(db)
+                    });
+                    if (response.ok) { showToast('Saved'); closeModal(); render(); }
+                } catch (e) { alert("JSON Error"); }
+            };
+        }
+
+        function updatePath(path, val) {
+            let curr = db;
+            for (let i = 0; i < path.length - 1; i++) curr = curr[path[i]];
+            curr[path[path.length - 1]] = val;
+        }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 1500);
+        }
+        window.onload = fetchData;
+    </script>
+</body>
+</html>

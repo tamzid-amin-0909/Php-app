@@ -1,0 +1,120 @@
+/* --- Global Liquid Foundation --- */
+body { 
+    transition: background 0.5s ease;
+    /* Expanded 5-point mesh for ultra-vibrant refraction */
+    background: 
+        radial-gradient(at 0% 0%, hsl(253deg 54.98% 13.51%) 0px, transparent 50%), 
+        radial-gradient(at 50% 0%, hsl(220deg 60% 30%) 0px, transparent 55%), 
+        radial-gradient(at 100% 0%, hsl(339deg 43.84% 5.58%) 0px, transparent 50%),
+        radial-gradient(at 80% 50%, hsl(248.06deg 34.27% 40.46% / 60%) 0px, transparent 40%),
+        radial-gradient(at 20% 80%, hsl(234.22deg 42.52% 23.08% / 83%) 0px, transparent 40%),
+        #050505;
+    background-attachment: fixed;
+    margin: 0;
+}
+
+/* --- The Liquid Glass Panel --- */
+.glass-panel { 
+    /* Deep iOS Blur + Saturation boost */
+    backdrop-filter: blur(40px) saturate(200%) brightness(115%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(115%);
+    
+    background: linear-gradient(
+        135deg, 
+        rgba(255, 255, 255, 0.1) 0%, 
+        rgba(255, 255, 255, 0.03) 100%
+    ); 
+    
+    /* Precision hairline border */
+    border: 0.5px solid rgba(255, 255, 255, 0.25);
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+    
+    border-radius: 28px;
+    /* Layered shadow for depth without high GPU cost */
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6);
+    
+    /* Hardware acceleration */
+    transform: translate3d(0, 0, 0);
+    will-change: transform, opacity;
+    
+    /* Fast, snappy transition */
+    transition: all 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* --- Fast Premium Card --- */
+.premium-card { 
+    cursor: pointer;
+}
+
+.premium-card:hover { 
+    /* Snappy 1.02x scale */
+    transform: translate3d(0, -6px, 0) scale(1.02);
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    box-shadow: 0 25px 50px -15px rgba(0, 0, 0, 0.8);
+}
+
+/* --- Snappy Liquid Entrance --- */
+.fade-in { 
+    /* Faster duration: 0.4s instead of 0.8s */
+    animation: snappyLiquid 0.45s cubic-bezier(0.2, 0, 0.2, 1) forwards; 
+}
+
+@keyframes snappyLiquid { 
+    from { 
+        opacity: 0; 
+        transform: translate3d(0, 15px, 0) scale(0.97);
+    } 
+    to { 
+        opacity: 1; 
+        transform: translate3d(0, 0, 0) scale(1);
+    } 
+}
+
+/* --- Optimized Liquid Marquee --- */
+.marquee { 
+    overflow: hidden; 
+    white-space: nowrap;
+}
+
+.marquee span { 
+    display: inline-block; 
+    padding-left: 100%; 
+    animation: marquee 12s linear infinite; /* Faster scroll */
+    will-change: transform;
+}
+
+@keyframes marquee { 
+    0% { transform: translate3d(0, 0, 0); } 
+    100% { transform: translate3d(-100%, 0, 0); } 
+}
+
+/* --- Thin Scrollbar --- */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { 
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+/* --- Fast Admin Actions --- */
+.admin-actions { 
+    z-index: 20; 
+    position: absolute; 
+    top: 10px; 
+    left: 10px; 
+    display: flex; 
+    gap: 6px; 
+    opacity: 0; 
+    transform: scale(0.9);
+    transition: all 0.2s cubic-bezier(0.2, 0, 0.2, 1); 
+}
+
+.premium-card:hover .admin-actions { 
+    opacity: 1; 
+    transform: scale(1);
+}
+.code-editor {
+            font-family: 'Fira Code', monospace;
+            background: #000;
+            line-height: 0.7;
+}
